@@ -1,0 +1,41 @@
+name: CI/CD do cardapio
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar e validar o site estatico
+        run: |
+          set -eu
+          test -s index.html
+          test -s style.css
+          grep -qi '<html' index.html
+          grep -qi 'style.css' index.html
+          mkdir -p _site
+          cp index.html style.css _site/
+          cp -r assets _site/
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push'
+        with:
+          path: _site
+  deploy:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency: github-pages
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - id: publish
+        uses: actions/deploy-pages@v4
